@@ -1,0 +1,250 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.satwic.poc;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.io.FilenameUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.spanner.Spanner;
+
+/**
+ * A starter example for writing Beam programs.
+ *
+ * <p>
+ * The example takes two strings, converts them to their upper-case
+ * representation and logs them.
+ *
+ * <p>
+ * To run this starter example locally using DirectRunner, just execute it
+ * without any additional parameters from your favorite development environment.
+ *
+ * <p>
+ * To run this starter example using managed resource in Google Cloud Platform,
+ * you should specify the following command-line options:
+ * --project=<YOUR_PROJECT_ID>
+ * --stagingLocation=<STAGING_LOCATION_IN_CLOUD_STORAGE> --runner=DataflowRunner
+ */
+
+public class StarterPipeline {
+
+	static List<String> Hcolumn = new ArrayList<String>();
+	static Map<String, Integer> names = new HashMap<String, Integer>();
+
+	static PCollection<String> quotes = null;
+	static PCollection<String> quotes1 = null;
+	static String files = "gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/Location_DM001.txt,"
+			+ "gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/LMF_tab.txt";
+
+	// StringToRowConverter
+
+	static class StringToRowConverter extends DoFn<String, TableRow> {
+		String s;
+		Map<String, Integer> map = new HashMap<String, Integer>();
+		public StringToRowConverter(String sep) {
+			// TODO Auto-generated constructor stub
+			s = sep;
+			//String sep1 = getSeperator(files.split(",")[0]);
+			map = setMapping(quotes, s);
+		}
+
+		@ProcessElement
+		public void processElement(ProcessContext c) {
+			String v = c.element();
+			try{
+				c.output(new TableRow().set("Country_Name", v.split(s)[map.get("Country_Name")])
+						.set("Location_Nbr", v.split(s)[map.get("Location_Nbr")])
+						.set("Location_Type", v.split(s)[map.get("Location_Type")])
+						.set("Address_1", v.split(s)[map.get("Address_1")])
+						.set("Address_2", v.split(s)[map.get("Address_2")])
+						.set("Postal_Code", v.split(s)[map.get("Postal_Code")])
+						.set("State_Region", v.split(s)[map.get("State_Region")])
+						.set("Country_Code", v.split(s)[map.get("Country_Code")])
+						.set("Retailer_Nbr", v.split(s)[map.get("Retailer_Nbr")]));
+			}catch(NullPointerException ne){
+				System.out.println(v+"null");
+				System.out.println(names);
+			}catch(ArrayIndexOutOfBoundsException ae){
+				System.out.println(v+"array");
+				System.out.println(names);
+			}
+			
+		}
+	}
+
+	public interface TemplateOptions extends DataflowPipelineOptions {
+
+		@Description("Path of the file to read from")
+		@Default.String("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/Sheet1.csv")
+		ValueProvider<String> getInputFile();
+
+		void setInputFile(ValueProvider<String> value);
+
+		@Description("intermediate table")
+		@Default.String("dulcet-cable-92410:sampleSheets.table1$20170101")
+		ValueProvider<String> getIntTableName();
+
+		void setIntTableName(ValueProvider<String> value);
+
+		@Description("final staging table")
+		@Default.String("dulcet-cable-92410:sampleSheets.table4$20170102")
+		ValueProvider<String> getTableName();
+
+		void setTableName(ValueProvider<String> value);
+	}
+
+	/*static class stripHeader extends DoFn<String, String> {
+		PCollection<String> separate;
+		public stripHeader(PCollection<String> quotes) {
+			// TODO Auto-generated constructor stub
+			separate = quotes;
+		}
+
+		@ProcessElement
+		public void processElement(ProcessContext c) {
+			String line = c.element();
+			if (!getHcolumn().contains(line.split(separate)[0])) { // separate is a PCollection<String>
+				c.output(line);
+			}
+		}
+	}*/
+
+	public static void main(String[] args) {
+
+		TemplateOptions options = PipelineOptionsFactory.create().as(TemplateOptions.class);
+		options.setProject("dulcet-cable-92410");
+		options.setStagingLocation("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/staging");
+		options.setTempLocation("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/staging/temp");
+		Pipeline p = Pipeline.create(options);
+		quotes = p.apply(TextIO.read().from(files.split(",")[0]));
+		String sep = getSeperator(files.split(",")[0]);
+		//setMapping(quotes, sep);
+
+		//String row0 = (String) quotes.apply(ParDo.of(new stripHeader(sep)));
+		//quotes.apply(ParDo.of(new stripHeader(quotes)))
+		PCollection<TableRow> row = quotes
+				.apply(ParDo.of(new StringToRowConverter(sep)));
+		row.apply(BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC.Location")
+				.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
+				.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+		
+		
+		
+
+		/*quotes1 = p.apply(TextIO.read().from(files.split(",")[1]));
+		String sep1 = getSeperator(files.split(",")[1]);
+		setMapping(quotes1, sep1);
+
+		PCollection<TableRow> row1 = quotes1.apply(ParDo.of(new stripHeader(quotes1)))
+				.apply(ParDo.of(new StringToRowConverter(sep1)));
+		row1.apply(BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC.Master_Location_Tab")
+				.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+				.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));*/
+
+		p.run();
+
+	}
+
+	public static List<String> getHcolumn() {
+		Hcolumn.add(0, "Country_Name");
+		Hcolumn.add(1, "Location_Nbr");
+		Hcolumn.add(2, "Location_Type");
+		Hcolumn.add(3, "Address_1");
+		Hcolumn.add(4, "Address_2");
+		Hcolumn.add(5, "Postal_Code");
+		Hcolumn.add(6, "State_Region");
+		Hcolumn.add(7, "Country_Code");
+		Hcolumn.add(8, "Retailer_Nbr");
+		return Hcolumn;
+	}
+
+	public static String getSeperator(String path) {
+
+		String Delimeter;
+		String separator = null;
+		Delimeter = FilenameUtils.getExtension(path);
+		if (Delimeter.equals("csv")) {
+			separator = ",";
+		} else {
+			
+			separator = "\t";
+		}
+		return separator;
+	}
+
+	public static Map<String, Integer> setMapping(PCollection<String> quotes, String seperatorString) {
+
+		quotes.apply(ParDo.of(new DoFn<String, TableRow>() {
+			@ProcessElement
+			public void processElement(ProcessContext c) {
+				String name = c.element();
+				//System.out.println(name);
+				if (getHcolumn().contains(name.split(seperatorString)[0])) {
+					//System.out.println(name + "jjj" + (name.split(seperatorString).length));
+					for (int i = 0; i < name.split(seperatorString).length; i++) {
+						if (name.split(seperatorString)[i].equals("Retailer_Nbr")) {
+							names.put("Retailer_Nbr", i);
+						} else if (name.split(seperatorString)[i].equals("Location_Nbr")) {
+							names.put("Location_Nbr", i);
+						} else if (name.split(seperatorString)[i].equals("Country_Name")) {
+							names.put("Country_Name", i);
+						} else if (name.split(seperatorString)[i].equals("Location_Type")) {
+							names.put("Location_Type", i);
+						} else if (name.split(seperatorString)[i].equals("Address_1")) {
+							names.put("Address_1", i);
+						} else if (name.split(seperatorString)[i].equals("Address_2")) {
+							names.put("Address_2", i);
+						} else if (name.split(seperatorString)[i].equals("Postal_Code")) {
+							names.put("Postal_Code", i);
+						} else if (name.split(seperatorString)[i].equals("State_Region")) {
+							names.put("State_Region", i);
+						} else if (name.split(seperatorString)[i].equals("Country_Code")) {
+							names.put("Country_Code", i);
+						}
+
+					}
+
+				}
+			}
+		}));
+		return names;
+	}
+
+}
