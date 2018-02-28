@@ -77,35 +77,23 @@ public class StarterPipeline {
 
 	static class StringToRowConverter extends DoFn<String, TableRow> {
 		String s;
-		Map<String, Integer> map = new HashMap<String, Integer>();
 		public StringToRowConverter(String sep) {
 			// TODO Auto-generated constructor stub
 			s = sep;
-			//String sep1 = getSeperator(files.split(",")[0]);
-			map = setMapping(quotes, s);
 		}
 
 		@ProcessElement
 		public void processElement(ProcessContext c) {
 			String v = c.element();
-			try{
-				c.output(new TableRow().set("Country_Name", v.split(s)[map.get("Country_Name")])
-						.set("Location_Nbr", v.split(s)[map.get("Location_Nbr")])
-						.set("Location_Type", v.split(s)[map.get("Location_Type")])
-						.set("Address_1", v.split(s)[map.get("Address_1")])
-						.set("Address_2", v.split(s)[map.get("Address_2")])
-						.set("Postal_Code", v.split(s)[map.get("Postal_Code")])
-						.set("State_Region", v.split(s)[map.get("State_Region")])
-						.set("Country_Code", v.split(s)[map.get("Country_Code")])
-						.set("Retailer_Nbr", v.split(s)[map.get("Retailer_Nbr")]));
-			}catch(NullPointerException ne){
-				System.out.println(v+"null");
-				System.out.println(names);
-			}catch(ArrayIndexOutOfBoundsException ae){
-				System.out.println(v+"array");
-				System.out.println(names);
-			}
-			
+			c.output(new TableRow().set("Country_Name", v.split(s)[names.get("Country_Name")])
+					.set("Location_Nbr", v.split(s)[names.get("Location_Nbr")])
+					.set("Location_Type", v.split(s)[names.get("Location_Type")])
+					.set("Address_1", v.split(s)[names.get("Address_1")])
+					.set("Address_2", v.split(s)[names.get("Address_2")])
+					.set("Postal_Code", v.split(s)[names.get("Postal_Code")])
+					.set("State_Region", v.split(s)[names.get("State_Region")])
+					.set("Country_Code", v.split(s)[names.get("Country_Code")])
+					.set("Retailer_Nbr", v.split(s)[names.get("Retailer_Nbr")]));
 		}
 	}
 
@@ -153,31 +141,28 @@ public class StarterPipeline {
 		options.setStagingLocation("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/staging");
 		options.setTempLocation("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/staging/temp");
 		Pipeline p = Pipeline.create(options);
+		
 		quotes = p.apply(TextIO.read().from(files.split(",")[0]));
 		String sep = getSeperator(files.split(",")[0]);
-		//setMapping(quotes, sep);
+		setMapping(quotes, sep);
 
 		//String row0 = (String) quotes.apply(ParDo.of(new stripHeader(sep)));
-		//quotes.apply(ParDo.of(new stripHeader(quotes)))
-		PCollection<TableRow> row = quotes
-				.apply(ParDo.of(new StringToRowConverter(sep)));
+		//.apply(ParDo.of(new stripHeader(quotes)))
+		PCollection<TableRow> row = quotes.apply(ParDo.of(new StringToRowConverter(sep)));
 		row.apply(BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC.Location")
 				.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
 				.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
-		
-		
-		
 
 		/*quotes1 = p.apply(TextIO.read().from(files.split(",")[1]));
 		String sep1 = getSeperator(files.split(",")[1]);
 		setMapping(quotes1, sep1);
 
-		PCollection<TableRow> row1 = quotes1.apply(ParDo.of(new stripHeader(quotes1)))
-				.apply(ParDo.of(new StringToRowConverter(sep1)));
+		//.apply(ParDo.of(new stripHeader(quotes1)))
+		PCollection<TableRow> row1 = quotes1.apply(ParDo.of(new StringToRowConverter(sep1)));
 		row1.apply(BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC.Master_Location_Tab")
 				.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-				.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));*/
-
+				.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+*/
 		p.run();
 
 	}
@@ -209,15 +194,15 @@ public class StarterPipeline {
 		return separator;
 	}
 
-	public static Map<String, Integer> setMapping(PCollection<String> quotes, String seperatorString) {
+	public static void setMapping(PCollection<String> quotes, String seperatorString) {
 
 		quotes.apply(ParDo.of(new DoFn<String, TableRow>() {
 			@ProcessElement
 			public void processElement(ProcessContext c) {
 				String name = c.element();
-				//System.out.println(name);
+				System.out.println(name);
 				if (getHcolumn().contains(name.split(seperatorString)[0])) {
-					//System.out.println(name + "jjj" + (name.split(seperatorString).length));
+					System.out.println(name + "jjj" + (name.split(seperatorString).length));
 					for (int i = 0; i < name.split(seperatorString).length; i++) {
 						if (name.split(seperatorString)[i].equals("Retailer_Nbr")) {
 							names.put("Retailer_Nbr", i);
@@ -244,7 +229,8 @@ public class StarterPipeline {
 				}
 			}
 		}));
-		return names;
+
 	}
 
 }
+
