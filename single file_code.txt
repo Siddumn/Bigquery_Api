@@ -85,15 +85,26 @@ public class StarterPipeline {
 		@ProcessElement
 		public void processElement(ProcessContext c) {
 			String v = c.element();
-			c.output(new TableRow().set("Country_Name", v.split(s)[names.get("Country_Name")])
-					.set("Location_Nbr", v.split(s)[names.get("Location_Nbr")])
-					.set("Location_Type", v.split(s)[names.get("Location_Type")])
-					.set("Address_1", v.split(s)[names.get("Address_1")])
-					.set("Address_2", v.split(s)[names.get("Address_2")])
-					.set("Postal_Code", v.split(s)[names.get("Postal_Code")])
-					.set("State_Region", v.split(s)[names.get("State_Region")])
-					.set("Country_Code", v.split(s)[names.get("Country_Code")])
-					.set("Retailer_Nbr", v.split(s)[names.get("Retailer_Nbr")]));
+			try{
+				System.out.println(v);
+				System.out.println(names);
+				c.output(new TableRow().set("Country_Name", v.split(s)[names.get("Country_Name")])
+						.set("Location_Nbr", v.split(s)[names.get("Location_Nbr")])
+						.set("Location_Type", v.split(s)[names.get("Location_Type")])
+						.set("Address_1", v.split(s)[names.get("Address_1")])
+						.set("Address_2", v.split(s)[names.get("Address_2")])
+						.set("Postal_Code", v.split(s)[names.get("Postal_Code")])
+						.set("State_Region", v.split(s)[names.get("State_Region")])
+						.set("Country_Code", v.split(s)[names.get("Country_Code")])
+						.set("Retailer_Nbr", v.split(s)[names.get("Retailer_Nbr")]));
+			}catch(NullPointerException ne){
+				System.out.println(v + "null");
+				System.out.println(names);
+			}catch(ArrayIndexOutOfBoundsException ae){
+				System.out.println(v + "array");
+				System.out.println(names);
+			}
+			
 		}
 	}
 
@@ -143,8 +154,9 @@ public class StarterPipeline {
 		Pipeline p = Pipeline.create(options);
 		
 		quotes = p.apply(TextIO.read().from(files.split(",")[0]));
+		quotes1 = p.apply(TextIO.read().from(files.split(",")[0]));
 		String sep = getSeperator(files.split(",")[0]);
-		setMapping(quotes, sep);
+		setMapping(quotes1, sep);
 
 		//String row0 = (String) quotes.apply(ParDo.of(new stripHeader(sep)));
 		//.apply(ParDo.of(new stripHeader(quotes)))
@@ -200,7 +212,7 @@ public class StarterPipeline {
 			@ProcessElement
 			public void processElement(ProcessContext c) {
 				String name = c.element();
-				System.out.println(name);
+				//System.out.println(name);
 				if (getHcolumn().contains(name.split(seperatorString)[0])) {
 					System.out.println(name + "jjj" + (name.split(seperatorString).length));
 					for (int i = 0; i < name.split(seperatorString).length; i++) {
@@ -233,4 +245,3 @@ public class StarterPipeline {
 	}
 
 }
-
