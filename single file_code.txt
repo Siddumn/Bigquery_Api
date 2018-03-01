@@ -67,28 +67,77 @@ public class StarterPipeline {
 
 	static List<String> Hcolumn = new ArrayList<String>();
 	static Map<String, Integer> names = new HashMap<String, Integer>();
+	static Map<String, Integer> map = new HashMap<String, Integer>();
+	static boolean b = true;
 
 	static PCollection<String> quotes = null;
 	static PCollection<String> quotes1 = null;
 	static String files = "gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/Location_DM001.txt,"
 			+ "gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/LMF_tab.txt";
+	static String header_content = "";
 
 	// StringToRowConverter
 
 	static class StringToRowConverter extends DoFn<String, TableRow> {
 		String s;
+		
+		
 		public StringToRowConverter(String sep) {
 			// TODO Auto-generated constructor stub
 			s = sep;
+			System.out.println(header_content);
+			
 		}
 
 		@ProcessElement
 		public void processElement(ProcessContext c) {
 			String v = c.element();
-			try{
-				System.out.println(v);
-				System.out.println(names);
-				c.output(new TableRow().set("Country_Name", v.split(s)[names.get("Country_Name")])
+			//System.out.println(header_content);
+			//System.out.println(map);
+			//try{
+			
+			
+			while(b){
+				String[] header_array = header_content.split(s);
+				
+				
+				for(int i=0;i<header_array.length;i++){
+					if(header_array[i].equals("Country_Name")){
+						map.put("Country_Name", i);
+					}else if(header_array[i].equals("Location_Nbr")){
+						map.put("Location_Nbr", i);
+					}else if(header_array[i].equals("Location_Type")){
+						map.put("Location_Type", i);
+					}else if(header_array[i].equals("Address_1")){
+						map.put("Address_1", i);
+					}else if(header_array[i].equals("Address_2")){
+						map.put("Address_2", i);
+					}else if(header_array[i].equals("Postal_Code")){
+						map.put("Postal_Code", i);
+					}else if(header_array[i].equals("State_Region")){
+						map.put("State_Region", i);
+					}else if(header_array[i].equals("Country_Code")){
+						map.put("Country_Code", i);
+					}else if(header_array[i].equals("Retailer_Nbr")){
+						map.put("Retailer_Nbr", i);
+					}
+					//logic to find the index of the header columns
+				}
+				System.out.println(header_content.split(s)[0]);
+				System.out.println(map);
+				b = false;
+			}
+				
+				c.output(new TableRow().set("Country_Name", v.split(s)[map.get("Country_Name")])
+						.set("Location_Nbr", v.split(s)[map.get("Location_Nbr")])
+						.set("Location_Type", v.split(s)[map.get("Location_Type")])
+						.set("Address_1", v.split(s)[map.get("Address_1")])
+						.set("Address_2", v.split(s)[map.get("Address_2")])
+						.set("Postal_Code", v.split(s)[map.get("Postal_Code")])
+						.set("State_Region", v.split(s)[map.get("State_Region")])
+						.set("Country_Code", v.split(s)[map.get("Country_Code")])
+						.set("Retailer_Nbr", v.split(s)[map.get("Retailer_Nbr")]));
+				/*c.output(new TableRow().set("Country_Name", v.split(s)[names.get("Country_Name")])
 						.set("Location_Nbr", v.split(s)[names.get("Location_Nbr")])
 						.set("Location_Type", v.split(s)[names.get("Location_Type")])
 						.set("Address_1", v.split(s)[names.get("Address_1")])
@@ -96,14 +145,14 @@ public class StarterPipeline {
 						.set("Postal_Code", v.split(s)[names.get("Postal_Code")])
 						.set("State_Region", v.split(s)[names.get("State_Region")])
 						.set("Country_Code", v.split(s)[names.get("Country_Code")])
-						.set("Retailer_Nbr", v.split(s)[names.get("Retailer_Nbr")]));
-			}catch(NullPointerException ne){
+						.set("Retailer_Nbr", v.split(s)[names.get("Retailer_Nbr")]));*/
+			/*}catch(NullPointerException ne){
 				System.out.println(v + "null");
 				System.out.println(names);
 			}catch(ArrayIndexOutOfBoundsException ae){
 				System.out.println(v + "array");
 				System.out.println(names);
-			}
+			}*/
 			
 		}
 	}
@@ -129,8 +178,8 @@ public class StarterPipeline {
 		void setTableName(ValueProvider<String> value);
 	}
 
-	/*static class stripHeader extends DoFn<String, String> {
-		PCollection<String> separate;
+	static class stripHeader extends DoFn<String, String> {
+		/*PCollection<String> separate;
 		public stripHeader(PCollection<String> quotes) {
 			// TODO Auto-generated constructor stub
 			separate = quotes;
@@ -142,8 +191,23 @@ public class StarterPipeline {
 			if (!getHcolumn().contains(line.split(separate)[0])) { // separate is a PCollection<String>
 				c.output(line);
 			}
+		}*/
+		String separate;
+		public stripHeader(String quotes) {
+			// TODO Auto-generated constructor stub
+			separate = quotes;
 		}
-	}*/
+
+		@ProcessElement
+		public void processElement(ProcessContext c) {
+			String line = c.element();
+			if (!getHcolumn().contains(line.split(separate)[0])) { // separate is a PCollection<String>
+				c.output(line);
+			}else{
+				header_content = line;
+			}
+		}
+	}
 
 	public static void main(String[] args) {
 
@@ -153,15 +217,15 @@ public class StarterPipeline {
 		options.setTempLocation("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/staging/temp");
 		Pipeline p = Pipeline.create(options);
 		
-		quotes = p.apply(TextIO.read().from(files.split(",")[0]));
-		quotes1 = p.apply(TextIO.read().from(files.split(",")[0]));
+		quotes = p.apply("Read from Text File", TextIO.read().from(files.split(",")[0]));
+		//quotes1 = p.apply(TextIO.read().from(files.split(",")[0]));
 		String sep = getSeperator(files.split(",")[0]);
-		setMapping(quotes1, sep);
+		//setMapping(quotes1, sep);
 
 		//String row0 = (String) quotes.apply(ParDo.of(new stripHeader(sep)));
-		//.apply(ParDo.of(new stripHeader(quotes)))
-		PCollection<TableRow> row = quotes.apply(ParDo.of(new StringToRowConverter(sep)));
-		row.apply(BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC.Location")
+		PCollection<TableRow> row = quotes.apply("Strip Header",ParDo.of(new stripHeader(sep)))
+				.apply("String 2 Row Converter", ParDo.of(new StringToRowConverter(sep)));
+		row.apply("Write to BigQuery Table", BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC.Location")
 				.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
 				.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
 
