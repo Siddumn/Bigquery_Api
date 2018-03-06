@@ -1,30 +1,17 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package com.satwic.poc;
+package com.satwics.dev;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -32,197 +19,24 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.io.FilenameUtils;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.spanner.Spanner;
 
-/**
- * A starter example for writing Beam programs.
- *
- * <p>
- * The example takes two strings, converts them to their upper-case
- * representation and logs them.
- *
- * <p>
- * To run this starter example locally using DirectRunner, just execute it
- * without any additional parameters from your favorite development environment.
- *
- * <p>
- * To run this starter example using managed resource in Google Cloud Platform,
- * you should specify the following command-line options:
- * --project=<YOUR_PROJECT_ID>
- * --stagingLocation=<STAGING_LOCATION_IN_CLOUD_STORAGE> --runner=DataflowRunner
- */
+public class DMItem_load  {
 
-public class StarterPipeline {
-
-	static int i=0;
-	static List<String> Hcolumn = new ArrayList<String>();
-	static List<String> Hcolumn1 = new ArrayList<String>();
-	static Map<String, Integer> names = new HashMap<String, Integer>();
-	static Map<String, Integer> map = new HashMap<String, Integer>();
-	static boolean b = true;
-	static Map<String, Integer> map1 = new HashMap<String, Integer>();
-	static boolean b1 = true;
-	static PCollection<String> quotes = null;
-	static PCollection<String> quotes1 = null;
-	static String files = "gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/Location_DM001.txt,"
-			+ "gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/Retailer_Sales_DM001.txt";
-	static String header_content = "";
-	static String header_content1 = "";
-
-	static class changeSchema extends DoFn<TableRow, TableRow> {
-		@ProcessElement
-		public void processElement(ProcessContext c) {
-			TableRow v = c.element();
-			String words = v.get("Product_Number").toString() +", "+ v.get("Product_Desc").toString()
-					+", "+ v.get("Product_Number").toString() +", "+ v.get("Retailer_Number").toString();
-			
-			
-			c.output(v);
-		}
-	}
-	
-	// StringToRowConverter
-	static class StringToRowConverterDPOS extends DoFn<String, TableRow> {
-		String s;
-
-		public StringToRowConverterDPOS(String sep) {
-			// TODO Auto-generated constructor stub
-			s = sep;
-			System.out.println(header_content1);
-		}
-
-		@ProcessElement
-		public void processElement(ProcessContext c) {
-			String v = c.element();
-			while (b1) {
-				String[] header_array = header_content1.split(s);
-				System.out.println(header_content1);
-				for (int i = 0; i < header_array.length; i++) {
-					if (header_array[i].equals("Retailer_Number")) {
-						map1.put("Retailer_Number", i);
-					} else if (header_array[i].equals("Week_Ending_Date")) {
-						map1.put("Week_Ending_Date", i);
-					} else if (header_array[i].equals("Sales_Currency")) {
-						map1.put("Sales_Currency", i);
-					} else if (header_array[i].equals("Supplier_Name")) {
-						map1.put("Supplier_Name", i);
-					} else if (header_array[i].equals("Supplier_Number")) {
-						map1.put("Supplier_Number", i);
-					} else if (header_array[i].equals("Product_Number")) {
-						map1.put("Product_Number", i);
-					} else if (header_array[i].equals("Product_Desc")) {
-						map1.put("Product_Desc", i);
-					} else if (header_array[i].equals("Location_Number")) {
-						map1.put("Location_Number", i);
-					} else if (header_array[i].equals("Sales_Amount")) {
-						map1.put("Sales_Amount", i);
-					} else if (header_array[i].equals("Sales_Units")) {
-						map1.put("Sales_Units", i);
-					} else if (header_array[i].equals("Inventory_Amount")) {
-						map1.put("Inventory_Amount", i);
-					} else if (header_array[i].equals("Inventory_Units")) {
-						map1.put("Inventory_Units", i);
-					} else if (header_array[i].equals("On_Order_Amount")) {
-						map1.put("On_Order_Amount", i);
-					} else if (header_array[i].equals("On_Order_Units")) {
-						map1.put("On_Order_Units", i);
-					} else if (header_array[i].equals("Sell_Thru_Amount")) {
-						map1.put("Sell_Thru_Amount", i);
-					} else if (header_array[i].equals("Sell_Thru_Units")) {
-						map1.put("Sell_Thru_Units", i);
-					}
-					// logic to find the index of the header columns
-				}
-				// System.out.println(map1);
-				b1 = false;
-			}
-			// System.out.println(v);
-			c.output(new TableRow().set("Retailer_Number", v.split(s)[map1.get("Retailer_Number")])
-					.set("Week_Ending_Date", v.split(s)[map1.get("Week_Ending_Date")])
-					.set("Sales_Currency", v.split(s)[map1.get("Sales_Currency")])
-					.set("Supplier_Name", v.split(s)[map1.get("Supplier_Name")])
-					.set("Supplier_Number", v.split(s)[map1.get("Supplier_Number")])
-					.set("Product_Number", v.split(s)[map1.get("Product_Number")])
-					// .set("Retailer_Prod_Number",
-					// v.split(s)[map1.get("Retailer_Prod_Number")])
-					.set("Product_Desc", v.split(s)[map1.get("Product_Desc")])
-					.set("Location_Number", v.split(s)[map1.get("Location_Number")])
-					.set("Sales_Amount", v.split(s)[map1.get("Sales_Amount")])
-					.set("Sales_Units", v.split(s)[map1.get("Sales_Units")])
-					.set("Inventory_Amount", v.split(s)[map1.get("Inventory_Amount")])
-					.set("Inventory_Units", v.split(s)[map1.get("Inventory_Units")])
-					.set("On_Order_Amount", v.split(s)[map1.get("On_Order_Amount")])
-					.set("On_Order_Units", v.split(s)[map1.get("On_Order_Units")])
-					.set("Sell_Thru_Amount", v.split(s)[map1.get("Sell_Thru_Amount")])
-					.set("Sell_Thru_Units", v.split(s)[map1.get("Sell_Thru_Units")]));
-
-		}
-	}
-
-	static class StringToRowConverterLMF extends DoFn<String, TableRow> {
-		String s;
-
-		public StringToRowConverterLMF(String sep) {
-			// TODO Auto-generated constructor stub
-			s = sep;
-			System.out.println(header_content);
-		}
-
-		@ProcessElement
-		public void processElement(ProcessContext c) {
-			String v = c.element();
-			while (b) {
-				String[] header_array = header_content.split(s);
-				for (int i = 0; i < header_array.length; i++) {
-					if (header_array[i].equals("Country_Name")) {
-						map.put("Country_Name", i);
-					} else if (header_array[i].equals("Location_Nbr")) {
-						map.put("Location_Nbr", i);
-					} else if (header_array[i].equals("Location_Type")) {
-						map.put("Location_Type", i);
-					} else if (header_array[i].equals("Address_1")) {
-						map.put("Address_1", i);
-					} else if (header_array[i].equals("Address_2")) {
-						map.put("Address_2", i);
-					} else if (header_array[i].equals("Postal_Code")) {
-						map.put("Postal_Code", i);
-					} else if (header_array[i].equals("State_Region")) {
-						map.put("State_Region", i);
-					} else if (header_array[i].equals("Country_Code")) {
-						map.put("Country_Code", i);
-					} else if (header_array[i].equals("Retailer_Nbr")) {
-						map.put("Retailer_Nbr", i);
-					}
-					// logic to find the index of the header columns
-				}
-				System.out.println(header_content.split(s)[0]);
-				System.out.println(map);
-				b = false;
-			}
-			i++;
-			c.output(new TableRow().set("Country_Name", v.split(s)[map.get("Country_Name")])
-					.set("Location_Nbr", v.split(s)[map.get("Location_Nbr")])
-					.set("Location_Type", v.split(s)[map.get("Location_Type")])
-					.set("Address_1", v.split(s)[map.get("Address_1")])
-					.set("Address_2", v.split(s)[map.get("Address_2")])
-					.set("Postal_Code", v.split(s)[map.get("Postal_Code")])
-					.set("State_Region", v.split(s)[map.get("State_Region")])
-					.set("Country_Code", v.split(s)[map.get("Country_Code")])
-					.set("Retailer_Nbr", v.split(s)[map.get("Retailer_Nbr")]));
-		}
-	}
-
+	static int dw_item=0,max=0, b=0;
+	static boolean a=true;
+	static List<Integer> z=new ArrayList<>(); 
 	public interface TemplateOptions extends DataflowPipelineOptions {
 
 		@Description("Path of the file to read from")
@@ -244,207 +58,129 @@ public class StarterPipeline {
 		void setTableName(ValueProvider<String> value);
 	}
 
-	static class stripHeaderLMF extends DoFn<String, String> {
-		/*
-		 * PCollection<String> separate; public stripHeader(PCollection<String>
-		 * quotes) { // TODO Auto-generated constructor stub separate = quotes;
-		 * }
-		 * 
-		 * @ProcessElement public void processElement(ProcessContext c) { String
-		 * line = c.element(); if
-		 * (!getHcolumn().contains(line.split(separate)[0])) { // separate is a
-		 * PCollection<String> c.output(line); } }
-		 */
-		String separate;
-
-		public stripHeaderLMF(String quotes) {
-			// TODO Auto-generated constructor stub
-			separate = quotes;
-		}
-
-		@ProcessElement
-		public void processElement(ProcessContext c) {
-			String line = c.element();
-
-			if (!getHcolumn().contains(line.split(separate)[0])) { // separate
-																	// is a
-																	// PCollection<String>
-				c.output(line);
-			} else {
-				header_content = line;
-			}
-
-		}
-	}
-
-	static class stripHeaderDPOS extends DoFn<String, String> {
-		/*
-		 * PCollection<String> separate; public stripHeader(PCollection<String>
-		 * quotes) { // TODO Auto-generated constructor stub separate = quotes;
-		 * }
-		 * 
-		 * @ProcessElement public void processElement(ProcessContext c) { String
-		 * line = c.element(); if
-		 * (!getHcolumn().contains(line.split(separate)[0])) { // separate is a
-		 * PCollection<String> c.output(line); } }
-		 */
-		String separate;
-
-		public stripHeaderDPOS(String quotes) {
-			// TODO Auto-generated constructor stub
-			separate = quotes;
-		}
-
-		@ProcessElement
-		public void processElement(ProcessContext c) {
-			String line = c.element();
-			if (!getHcolumnDPOS().contains(line.split(separate)[0])) { // separate
-																		// is a
-																		// PCollection<String>
-				c.output(line);
-			} else {
-				header_content = line;
-			}
-
-			if (!getHcolumn().contains(line.split(separate)[0])) { // separate
-																	// is a
-																	// PCollection<String>
-				c.output(line);
-			} else {
-				header_content = line;
-			}
-
-		}
-	}
-
 	public static void main(String[] args) {
 
+		
 		TemplateOptions options = PipelineOptionsFactory.create().as(TemplateOptions.class);
 		options.setProject("dulcet-cable-92410");
 		options.setStagingLocation("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/staging");
 		options.setTempLocation("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/staging/temp");
-		Pipeline plmf = Pipeline.create(options);
-		Pipeline pdpos = Pipeline.create(options);
+
 		Pipeline pReadAndWrite = Pipeline.create(options);
-		quotes = plmf.apply("Read from Text File", TextIO.read().from(files.split(",")[0]));
-		// quotes1 = p.apply(TextIO.read().from(files.split(",")[0]));
-		String sep = getSeperator(files.split(",")[0]);
-		// setMapping(quotes1, sep);
-
-		// String row0 = (String) quotes.apply(ParDo.of(new stripHeader(sep)));
-		PCollection<TableRow> row = quotes.apply("Strip Header1", ParDo.of(new stripHeaderLMF(sep)))
-				.apply("String 2 Row Converter", ParDo.of(new StringToRowConverterLMF(sep)));
-		row.apply("Write to BigQuery Table",
-				BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC.Location")
-						.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
-						.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
-
-		quotes1 = pdpos.apply(TextIO.read().from(files.split(",")[1]));
-		String sep1 = getSeperator(files.split(",")[1]);
-		// setMapping(quotes1, sep1);
-
-		// .apply(ParDo.of(new stripHeader(quotes1)))
-		PCollection<TableRow> row1 = quotes1.apply("Strip Header2", ParDo.of(new stripHeaderDPOS(sep1)))
-				.apply("String 2 Row Converter1", ParDo.of(new StringToRowConverterDPOS(sep1)));
-		row1.apply("Write to BigQuery Table1",
-				BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC.Reatailer_Sales")
-						.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
-						.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
 		
-		
-		PCollection<TableRow> row2 = pReadAndWrite.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC.Reatailer_Sales"));
-		PCollection<TableRow> row3 = pReadAndWrite.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC.Location"));
-		
-		//plmf.run();
-		//pdpos.run();
-		pReadAndWrite.run();
-		
-	}
-
-	public static List<String> getHcolumn() {
-		Hcolumn.add(0, "Country_Name");
-		Hcolumn.add(1, "Location_Nbr");
-		Hcolumn.add(2, "Location_Type");
-		Hcolumn.add(3, "Address_1");
-		Hcolumn.add(4, "Address_2");
-		Hcolumn.add(5, "Postal_Code");
-		Hcolumn.add(6, "State_Region");
-		Hcolumn.add(7, "Country_Code");
-		Hcolumn.add(8, "Retailer_Nbr");
-		return Hcolumn;
-	}
-
-	public static List<String> getHcolumnDPOS() {
-		Hcolumn1.add(0, "Retailer_Number");
-		Hcolumn1.add(1, "Week_Ending_Date");
-		Hcolumn1.add(2, "Sales_Currency");
-		Hcolumn1.add(3, "Supplier_Name");
-		Hcolumn1.add(4, "Supplier_Number");
-		Hcolumn1.add(5, "Product_Number");
-		// Hcolumn.add(6, "Retailer_Prod_Number");
-		Hcolumn1.add(6, "Product_Desc");
-		Hcolumn1.add(7, "Location_Number");
-		Hcolumn1.add(8, "Sales_Amount");
-		Hcolumn1.add(9, "Sales_Units");
-		Hcolumn1.add(10, "Inventory_Amount");
-		Hcolumn1.add(11, "Inventory_Units");
-		Hcolumn1.add(12, "On_Order_Amount");
-		Hcolumn1.add(13, "On_Order_Units");
-		Hcolumn1.add(14, "Sell_Thru_Amount");
-		Hcolumn1.add(15, "Sell_Thru_Units");
-		return Hcolumn1;
-	}
-
-	public static String getSeperator(String path) {
-
-		String Delimeter;
-		String separator = null;
-		Delimeter = FilenameUtils.getExtension(path);
-		if (Delimeter.equals("csv")) {
-			separator = ",";
-		} else {
-
-			separator = "\t";
-		}
-		return separator;
-	}
-
-	/*public static void setMapping(PCollection<String> quotes, String seperatorString) {
-
-		quotes.apply(ParDo.of(new DoFn<String, TableRow>() {
-			@ProcessElement
-			public void processElement(ProcessContext c) {
-				String name = c.element();
-				// System.out.println(name);
-				if (getHcolumn().contains(name.split(seperatorString)[0])) {
-					System.out.println(name + "jjj" + (name.split(seperatorString).length));
-					for (int i = 0; i < name.split(seperatorString).length; i++) {
-						if (name.split(seperatorString)[i].equals("Retailer_Nbr")) {
-							names.put("Retailer_Nbr", i);
-						} else if (name.split(seperatorString)[i].equals("Location_Nbr")) {
-							names.put("Location_Nbr", i);
-						} else if (name.split(seperatorString)[i].equals("Country_Name")) {
-							names.put("Country_Name", i);
-						} else if (name.split(seperatorString)[i].equals("Location_Type")) {
-							names.put("Location_Type", i);
-						} else if (name.split(seperatorString)[i].equals("Address_1")) {
-							names.put("Address_1", i);
-						} else if (name.split(seperatorString)[i].equals("Address_2")) {
-							names.put("Address_2", i);
-						} else if (name.split(seperatorString)[i].equals("Postal_Code")) {
-							names.put("Postal_Code", i);
-						} else if (name.split(seperatorString)[i].equals("State_Region")) {
-							names.put("State_Region", i);
-						} else if (name.split(seperatorString)[i].equals("Country_Code")) {
-							names.put("Country_Code", i);
-						}
-
+		PCollection<KV<String, String>> RetailerData =  pReadAndWrite
+				.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC_TGT.DIM_RETAILER"))
+				.apply("ToMap", ParDo.of(new DoFn<TableRow, KV<String, String>>(){
+					@ProcessElement
+					public void processElement(ProcessContext c){
+						TableRow t = c.element();
+						String keyrow = (String)t.get("RETAILER_NUMBER");
+						String valrow = t.get("COUNTRY_CODE") +","+ t.get("RETAILER_ID");
+						c.output(KV.of(keyrow, valrow));
 					}
+				}));
+		PCollectionView<Map<String, String>> Retailer_Map = RetailerData.apply("ToView", View.asMap());
+		PCollection<String> ItemData =  pReadAndWrite
+				.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC_TGT.DIM_ITEM"))
+				.apply("ToList", ParDo.of(new DoFn<TableRow, String>(){
+					@ProcessElement
+					public void processElement(ProcessContext c){
+						TableRow t = c.element();
+						String s = t.get("ITEM_NUMBER") +","+ t.get("RETAILER_ID") +","+ t.get("COUNTRY_CODE");
+						String a=(String) t.get("DW_ITEM_ID");
+						b=Integer.parseInt(a);
+						try{
+						z.add(b);
+					//	System.out.println(b+"bbbb"+z+"tryyy");
+						}
+						catch(NullPointerException e)
+						{
+							System.out.println(b+"bbbb"+z);
+						}
+						c.output(s);
+					}
+				}));
 
-				}
-			}
-		}));
+		PCollectionView<List<String>> Item_List = ItemData.apply("ToView", View.asList());
+		PCollection<TableRow> ps = pReadAndWrite
+				.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_WORK_DB.Reatailer_Sales_copy"))
+				.apply("ToLines", ParDo.of(new DoFn<TableRow, TableRow>(){
+					@ProcessElement
+					public void processElement(ProcessContext c) throws Exception{
+						TableRow row = c.element();
+						;
+						List<String> list = c.sideInput(Item_List);
+						//System.out.println(list.size());
+						
+						Map<String, String> map = c.sideInput(Retailer_Map);
+						Set<String> retailer_numbers = map.keySet();
+						/*for(String retailer_number : retailer_numbers){
+							System.out.println(retailer_number);
+						}*/
+						/*while(retailer_number.iterator().hasNext()){
+							String key = retailer_number.iterator().next();
+							System.out.println(key);
+						}*/
+						//System.out.println(retailer_number);
+						
+						String rowkey = (String) row.get("Retailer_Number");
+						if(retailer_numbers.contains(rowkey)){
+							
+							//String retailerNumber = rowkey;
+							
+							//unique
+							//System.out.println(list.get(0)+"dw_ITEM"+max+"maximum");
+							String countryCode = map.get(rowkey).split(",")[0];
+							String retailerID = map.get(rowkey).split(",")[1];
+							String productNumber = (String) row.get("Product_Number");
+														String prodDesc = (String) row.get("Product_Desc");
+							Date daterepeat = new Date();
+							DateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+							String daterepeatstring = df.format(daterepeat);
+							String checkUnique = productNumber+","+retailerID+","+countryCode;
+							///System.out.println(countryCode+","+retailerID+","+productNumber+","+prodDesc+","+daterepeatstring);
+							
+							if(list.contains(checkUnique)){
+								//System.out.println(Collections.max(z)+"maxumumkkkk");
+								//z.remove(b);
+								max=Collections.max(z);
+							}else
+							{
+								if(a==true)
+								{
+									dw_item=Collections.max(z);
+									System.out.println(dw_item+"truehhh");
+									a=false;
+								}
+								//System.out.println(max+"maxumumkvvv"+dw_item);
+								c.output(new TableRow().set("DW_ITEM_ID", ++dw_item).set("ITEM_NUMBER", productNumber)
+										.set("RETAILER_ID", retailerID).set("COUNTRY_CODE", countryCode)
+										.set("ITEM_DESCRIPTION", prodDesc).set("UPC_NUMBER", productNumber)
+										.set("INSERT_TS", daterepeatstring));
+								//a=false;
+							
+							}
+							
+							
+						}
+						
+					}
+				}).withSideInputs(Retailer_Map).withSideInputs(Item_List));
+		
+		ps.apply(BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC_TGT.DIM_ITEM")
+				.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+				.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+		
 
-	}*/
-
+		pReadAndWrite.run();
+		System.out.println(z+"ggggg");
+		dw_item=Collections.max(z);
+		System.out.println(Collections.max(z)+"mx"+dw_item);
+	}
 }
+
+
+
+ 
+
+	
