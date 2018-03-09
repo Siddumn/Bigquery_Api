@@ -1,0 +1,92 @@
+package com.satwics.dev;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.FieldValueList;
+import com.google.cloud.bigquery.JobException;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+
+public class Sample2 {
+	public static void Bigquery_Read(BigQuery bigquery) throws JobException, InterruptedException {
+		// LOCATION TABLE COLUMNS
+		String LOCATION_Nbr = null;
+		String COUNTRY_CODE = null;
+		String ADDRESS_1 = null;
+		String ADDRESS_2 = null;
+		String Postal_Code = null;
+		String State_Region = null;
+		String COUNTRY_NAME = null;
+		String Retailer_Nbr = null;
+
+		// DIM_RETAILER TABLE COLUMN
+		String RETAILER_ID = null;
+		String RCOUNTRY_CD = null;
+		String RETAILER_NUMBER = null;
+		int count = 0;
+		Set<String> lines = new HashSet<String>();
+		QueryJobConfiguration queryConfig = QueryJobConfiguration
+				.newBuilder(
+						"select D.RETAILER_ID, L.LOCATION_Nbr, L.COUNTRY_CODE,L.Address_1,L.ADDRESS_2,L.Postal_Code ,L.State_Region ,L.COUNTRY_NAME,L.Retailer_Nbr from `SATWIC_POC.Location` L join `SATWIC_POC_STG.DIM_RETAILER` D on L.COUNTRY_CODE = D.COUNTRY_CODE and L.Retailer_Nbr = D.RETAILER_NUMBER ")
+				.setUseLegacySql(false).build();
+
+		bigquery.query(queryConfig);
+		for (FieldValueList row : bigquery.query(queryConfig).iterateAll()) {
+			RETAILER_ID=(String) row.get(0).getValue();
+			LOCATION_Nbr = (String) row.get(1).getValue();
+			COUNTRY_CODE = (String) row.get(2).getValue();
+			ADDRESS_1 = (String) row.get(3).getValue();
+			ADDRESS_2 = (String) row.get(4).getValue();
+			Postal_Code = (String) row.get(5).getValue();
+			State_Region = (String) row.get(6).getValue();
+			COUNTRY_NAME = (String) row.get(7).getValue();
+			Retailer_Nbr = (String) row.get(8).getValue();
+			String unique = RETAILER_ID + LOCATION_Nbr + COUNTRY_CODE;
+			if(count==1)
+   		 {
+   			 System.out.println("firstloop");
+   		 }else
+   		 {
+   			if(lines.contains(unique))
+   			{
+   				System.out.println("duplicate");
+   			}
+   			else
+   			{
+   				lines.add(unique);
+   				System.out.println(RCOUNTRY_CD+"retailer"+COUNTRY_CODE+"loc_reta"+Retailer_Nbr+RETAILER_ID);
+   					QueryJobConfiguration queryConfig3 =QueryJobConfiguration.newBuilder("INSERT into `SATWIC_WORK_DB.DIM_LOCATION` (RETAILER_ID,LOCATION_NUMBER,COUNTRY_CODE,ADDRESS_1,ADDRESS_2,ZIP_CODE,STATE,COUNTRY_NAME) VALUES "+ "("+RETAILER_ID+",'"+LOCATION_Nbr+"','"+COUNTRY_CODE+"','"+ADDRESS_1+"','"+ADDRESS_2+"','"+Postal_Code+"','"+State_Region+"','"+COUNTRY_NAME+"') ").setUseLegacySql(false).build();
+   					bigquery.query(queryConfig3);
+
+   			}
+   			 
+   		 }
+
+   	}
+
+
+	
+
+	}
+
+	public static void main(String[] args)
+			throws FileNotFoundException, IOException, JobException, InterruptedException {
+		// TODO Auto-generated method stub
+		BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId("dulcet-cable-92410")
+				.setCredentials(ServiceAccountCredentials.fromStream(new FileInputStream(
+						"C:\\Users\\Shashi\\Downloads\\Satwic RnD Compute Engine-209abac83485.json")))
+				.build().getService();
+
+		// getDefaultInstance().getService();
+		// BigQuery bigquery1=bigquery.
+		Bigquery_Read(bigquery);
+
+	}
+
+}
