@@ -1,0 +1,149 @@
+package com.satwics.dev;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.temporal.WeekFields;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.JobException;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+
+public class DIM_TIME_LOAD {
+
+	static int week_id=1; 
+	public static void main(String[] args) throws FileNotFoundException, IOException, JobException, InterruptedException, ParseException {
+		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub
+		BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId("dulcet-cable-92410")
+				.setCredentials(ServiceAccountCredentials.fromStream(new FileInputStream(
+						"C:\\Users\\Shashi\\Downloads\\Satwic RnD Compute Engine-209abac83485.json")))
+				.build().getService();
+
+		// getDefaultInstance().getService();
+		// BigQuery bigquery1=bigquery.
+		Bigquery_Read_DIM_TIME(bigquery);
+
+	}
+
+	private static void Bigquery_Read_DIM_TIME(BigQuery bigquery) throws JobException, InterruptedException, ParseException {
+		// TODO Auto-generated method stub
+		List<Date> map=new ArrayList<Date>();
+		List<Date> map1=new ArrayList<Date>();
+		
+		Calendar privCalendar = Calendar.getInstance();
+		Calendar privCalendar1 = Calendar.getInstance();
+		Calendar privCalendar2 = Calendar.getInstance();
+		Date fdow, ldow,fdow1,ldow1;
+		fdow=new Date();
+		ldow=new Date();
+		privCalendar1.setTime(ldow);
+		privCalendar1.add(Calendar.YEAR, 2); // Where n is int
+		ldow = privCalendar1.getTime();
+		//System.out.println(fdow+"  "+ldow);
+		privCalendar2.add(Calendar.DATE,-2);
+		fdow1=privCalendar2.getTime();
+		//System.out.println(fdow1+"jhgff");
+		int dayofWeek =1,count=0;
+		System.out.println(dayofWeek+"jhgff"+Calendar.SATURDAY);
+		while(fdow.before(ldow))
+		{
+			if( dayofWeek == Calendar.SUNDAY )
+			{
+				
+				if(count==0){
+
+					//System.out.println(fdow1+"  startdate "+dayofWeek);
+					map.add(fdow1);
+					count=1;
+					dayofWeek=dayofWeek+6;
+
+				}
+				else
+				{
+					privCalendar.add( Calendar.DATE, 1 );
+	                 fdow1 = privCalendar.getTime();
+	                 map.add(fdow1);
+                 //fdow1 = privCalendar.getTime();
+                 dayofWeek=dayofWeek+6;
+               //  System.out.println(fdow1+"  startdate "+dayofWeek);
+				}
+				
+			}
+			if( dayofWeek == Calendar.SATURDAY )
+			{
+				if(count==1)
+				{
+					privCalendar.add( Calendar.DATE, 4 );
+	                 fdow1 = privCalendar.getTime();
+	                 map1.add(fdow1);
+				//	System.out.println("end one time skip"+fdow1);
+					count=2;
+					dayofWeek=dayofWeek-6;
+				}
+				else
+				{
+				 privCalendar.add( Calendar.DATE, 6 );
+                 fdow1 = privCalendar.getTime();
+                 map1.add(fdow1);
+                 dayofWeek=dayofWeek-6;
+                // System.out.println(fdow1+"  Enddate "+dayofWeek);
+				}
+				
+			}
+
+			privCalendar1.add(Calendar.WEEK_OF_MONTH, -1); 
+			ldow = privCalendar1.getTime();
+	
+		}
+	
+		System.out.println(map+"jkkjj");
+		System.out.println(map1+"dumm");
+		insert_fun_bigquery(map,map1,bigquery);
+		
+	}
+
+	private static void insert_fun_bigquery(List<Date> map, List<Date> map1,BigQuery bigquery) throws JobException, InterruptedException, ParseException {
+		Date daterepeat = new Date();
+		DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+		String daterepeatstring = df.format(daterepeat);
+		String wsd,wed;
+		Date week_st_date;
+		Date week_end_date;
+		  
+		
+		 
+		  
+		 for (int counter = 0; counter < map.size(); counter++) { 		      
+			  week_st_date=map.get(counter); 
+			  week_end_date=map1.get(counter);
+			  wsd=df.format(week_st_date);
+			  wed=df.format(week_end_date);
+			  
+			  System.out.println(wsd+"end"+wed+"new");
+	          QueryJobConfiguration queryConfig = QueryJobConfiguration
+	  				.newBuilder(
+	  						"insert SATWIC_POC_TGT.DIM_TIME (WEEK_ID,WEEK_START_DT,WEEK_END_DT,INSERT_TS) values (+"+week_id+",'"+wsd+"','"+wed+"','"+daterepeatstring+"')  ")
+	  				.setUseLegacySql(false).build();
+	          bigquery.query(queryConfig);
+	          week_id++;
+	      }
+		
+		
+	}
+	
+
+}
