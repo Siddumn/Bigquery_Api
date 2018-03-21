@@ -1,0 +1,236 @@
+package com.satwic.poc;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.api.services.bigquery.model.TableRow;
+
+public class StarterPipeline {
+
+	static List<String> list = new ArrayList<String>();
+	static List<String> list1 = new ArrayList<String>();
+
+	/*public interface TemplateOptions extends DataflowPipelineOptions {
+
+		@Description("Path of the file to read from")
+		@Default.String("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/Sheet1.csv")
+		ValueProvider<String> getInputFile();
+
+		void setInputFile(ValueProvider<String> value);
+
+		@Description("intermediate table")
+		@Default.String("dulcet-cable-92410:sampleSheets.table1$20170101")
+		ValueProvider<String> getIntTableName();
+
+		void setIntTableName(ValueProvider<String> value);
+
+		@Description("final staging table")
+		@Default.String("dulcet-cable-92410:sampleSheets.table4$20170102")
+		ValueProvider<String> getTableName();
+
+		void setTableName(ValueProvider<String> value);
+	}*/
+
+	public static void main(String[] args) {
+		DataflowPipelineOptions options = PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+		options.setProject("dulcet-cable-92410");
+		options.setStagingLocation("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/staging");
+		options.setTempLocation("gs://dataproc-b58bb935-2bfc-481a-8065-cb8376915e76-asia-southeast1/staging/temp");
+		options.setRunner(DataflowRunner.class);
+
+		Pipeline p = Pipeline.create(options);
+
+		PCollection<KV<String, String>> LocationData = p
+				.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC.Location"))// ****try to read from dim_location****
+				.apply("ToMap1", ParDo.of(new DoFn<TableRow, KV<String, String>>() {
+					@ProcessElement
+					public void processElement(ProcessContext c) {
+						TableRow t = c.element();
+
+						String keyrow = t.get("Retailer_Nbr") + "," + t.get("Location_Nbr");
+						String valrow = (String) t.get("Country_Code");
+						if (!list.contains(keyrow.split(",")[1])) {
+							list.add(keyrow.split(",")[1]);
+							// System.out.println(keyrow+"::::"+valrow);
+							c.output(KV.of(keyrow, valrow));
+						}
+
+					}
+				}));
+		PCollectionView<Map<String, String>> Location_Map = LocationData.apply("ToView", View.asMap());
+
+		
+		PCollection<String> currencyData = p.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC_TGT.DIM_CURRENCY"))
+				.apply("ToMap2", ParDo.of(new DoFn<TableRow, String>(){
+					@ProcessElement
+					public void processElement(ProcessContext c) {
+						TableRow t = c.element();
+						String key = (String) t.get("CURRENCY_CODE");
+						c.output(key);
+					}
+				}));
+		PCollectionView<List<String>> currency_List = currencyData.apply("ToView", View.asList());
+		
+		
+		PCollection<KV<String, String>> timeData = p.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC_TGT.DIM_TIME"))
+				.apply("ToMap3", ParDo.of(new DoFn<TableRow, KV<String, String>>(){
+					@ProcessElement
+					public void processElement(ProcessContext c) {
+						TableRow t = c.element();
+						String datekey = (String) t.get("WEEK_ID");
+						String dateval = t.get("WEEK_ID") +","+ t.get("WEEK_START_DT") +","+ t.get("WEEK_END_DT");
+						c.output(KV.of(datekey, dateval));
+					}
+				}));
+		PCollectionView<Map<String, String>> time_Map = timeData.apply("ToView", View.asMap());
+		
+		PCollection<KV<String, String>> ps = p
+				.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC.Retailer_Sales"))
+				.apply("join", ParDo.of(new DoFn<TableRow, KV<String, String>>() {
+					@ProcessElement
+					public void processElement(ProcessContext c) throws Exception {
+
+						TableRow row = c.element();
+						String weekId = null;
+						Map<String, String> map = c.sideInput(Location_Map);
+						List<String> currency_list = c.sideInput(currency_List);
+						Map<String, String> time_map = c.sideInput(time_Map);
+						Iterator<String> time_itr = time_map.keySet().iterator();
+						String sales_currency = (String) row.get("Sales_Currency");
+						if(currency_list.contains(sales_currency)){
+							String week_ending_date = row.get("Week_Ending_Date").toString().trim();
+							//System.out.println(week_ending_date);
+							Date date=new SimpleDateFormat("yyyyMMdd").parse(week_ending_date);//working for yyyyy, reason?????
+							//System.out.println(date);
+							while(time_itr.hasNext()){
+								String value = time_map.get(time_itr.next());
+								String id=value.split(",")[0];
+								String fdate = value.split(",")[1];
+								Date date1=new SimpleDateFormat("yyyy-MM-dd").parse(fdate);
+								String ldate = value.split(",")[2];
+								Date date2=new SimpleDateFormat("yyyy-MM-dd").parse(ldate);
+								
+								if((date.after(date1)||(date.compareTo(date1)==0))&&(date.before(date2)||date.compareTo(date2)==0)){
+									weekId = id;
+								}else{
+									
+								}
+							}
+							String check = row.get("Retailer_Number") + "," + row.get("Location_Number");
+							if (map.containsKey(check)) {
+								String country_code = map.get(check);
+								String product_number = (String) row.get("Product_Number");
+								String retailer_number = (String) row.get("Retailer_Number");
+								String location_number = (String) row.get("Location_Number");
+								String sales_amount = (String) row.get("Sales_Amount");
+								String sales_units = (String) row.get("Sales_Units");
+								String inventory_amount = (String) row.get("Inventory_Amount");
+								String inventory_units = (String) row.get("Inventory_Units");
+								String key = product_number + "," + country_code;
+								String val = location_number + "," + sales_amount + "," + sales_units + ","
+										+ inventory_amount + "," + inventory_units + "," + retailer_number+","
+										+sales_currency+","+weekId;
+								if (!list1.contains(key)) {
+									list1.add(key);
+									//System.out.println(key + ":::" + val);
+									c.output(KV.of(key, val));
+								}
+
+							}
+						}else{
+							System.out.println("currency doesn't match");
+						}
+						
+					}
+				}).withSideInputs(Location_Map).withSideInputs(currency_List).withSideInputs(time_Map));
+		
+		PCollectionView<Map<String, String>> LmfDpos_Map = ps.apply("ToView", View.asMap());
+
+		PCollection<TableRow> ps2 = p
+				.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC_STG.DIM_ITEM"))
+				.apply("join", ParDo.of(new DoFn<TableRow, TableRow>() {
+					@ProcessElement
+					public void processElement(ProcessContext c) throws Exception {
+						TableRow t = c.element();
+						Map<String, String> map = c.sideInput(LmfDpos_Map);
+						String check2 = t.get("ITEM_NUMBER") + "," + t.get("COUNTRY_CODE");
+						if (map.containsKey(check2)) {
+							String dw_item_id = (String) t.get("DW_ITEM_ID");
+							String item_number = (String) t.get("ITEM_NUMBER");
+							String retailer_id = (String) t.get("RETAILER_ID");
+							String country_code = (String) t.get("COUNTRY_CODE");
+							String location_number = map.get(check2).split(",")[0];
+							String sales_amount = map.get(check2).split(",")[1];
+							String sales_units = map.get(check2).split(",")[2];
+							String inventory_amount = map.get(check2).split(",")[3];
+							String inventory_units = map.get(check2).split(",")[4];
+							String sales_currency = map.get(check2).split(",")[6];
+							String week_id = map.get(check2).split(",")[7];
+							Date daterepeat = new Date();
+							DateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+							String daterepeatstring = df.format(daterepeat);
+							c.output(new TableRow().set("DW_ITEM_ID", dw_item_id).set("ITEM_NUMBER", item_number)
+									.set("RETAILER_ID", retailer_id).set("WEEK_ID", week_id)
+									.set("LOCATION_NUMBER", location_number).set("COUNTRY_CODE", country_code)
+									.set("CURRENCY_CODE", sales_currency).set("SALES_AMOUNT", sales_amount)
+									.set("SALES_UNIT", sales_units).set("INV_AMOUNT", inventory_amount)
+									.set("INV_UNIT", inventory_units).set("INSERT_TS", daterepeatstring));
+
+						}
+					}
+				}).withSideInputs(LmfDpos_Map));
+
+		/*PCollection<KV<String, String>> ps1 = p
+				.apply(BigQueryIO.readTableRows().from("dulcet-cable-92410:SATWIC_POC_TGT.DIM_RETAILER"))
+				.apply("join", ParDo.of(new DoFn<TableRow, KV<String, String>>() {
+					@ProcessElement
+					public void processElement(ProcessContext c) throws Exception {
+						TableRow t = c.element();
+						Map<String, String> map = c.sideInput(LmfDpos_Map);
+						String check1 = t.get("RETAILER_NUMBER") + "," + t.get("COUNTRY_CODE");
+						if (map.containsKey(check1)) {
+							String retailer_id = (String) t.get("RETAILER_ID");
+							String country_code = (String) t.get("COUNTRY_CODE");
+							String joinedData = map.get(check1);
+							String keys = retailer_id + "," + country_code;
+							System.out.println(keys + "::" + joinedData);
+							c.output(KV.of(keys, joinedData));
+						}
+					}
+				}).withSideInputs(LmfDpos_Map));
+		PCollectionView<Map<String, String>> LmfDposDRET_Map = ps1.apply("ToView", View.asMap());*/
+
+		ps2.apply(BigQueryIO.writeTableRows().to("dulcet-cable-92410:SATWIC_POC_TGT.F_SALES_INV")
+				.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
+				.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+		p.run();
+	}
+}
