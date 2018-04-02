@@ -1,0 +1,63 @@
+package tsv_json;
+
+public class Location {
+	Country country;
+	public Location(Country country) {
+		this.country = country;
+	}
+}
+class Country {
+	String name;
+	State state;
+	public Country(String name,State state) {
+		this.name = name;
+		this.state = state;
+	}
+	
+}
+class State {
+	String name;
+	PostalCode pc;
+	public State(String name,PostalCode pc) {
+		this.name = name;
+		this.pc = pc;
+	}
+}
+/*class District {
+	String name;
+	City city;
+	public District(String name,City city) {
+		this.name = name;
+		this.city = city;
+	}
+}
+class City {
+	String name;
+	Address address;
+	public City(String name,Address address) {
+		this.name = name;
+		this.address = address;
+	}
+}*/
+class PostalCode{
+	String name;
+	Address address;
+	public PostalCode(String name,Address address) {
+		this.name = name;
+		this.address = address;
+	}
+}
+class Address {
+	
+	public String address;
+
+	public String getAddress() {
+		return address;
+	}
+
+	public void setAddress(String address) {
+		this.address = address;
+	}
+
+	
+}
