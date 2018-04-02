@@ -1,0 +1,79 @@
+package tsv_json;
+
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.google.gson.Gson;
+
+public class Converter
+{
+	static String country;
+	static String state;
+	static String postcode;
+	static String address;
+	
+    public static void main(String[] args)
+    {
+    	PrintWriter p = null;
+		try {
+			p = new PrintWriter(new FileWriter("C:\\employee.json"));
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+    	try {
+			BufferedReader br = new BufferedReader(new FileReader("C:\\Users\\Satwic_admin\\Downloads\\Location_DM001.txt"));
+			String line;
+			try {
+				while((line = br.readLine())!=null){
+					country = line.split("\t")[8];
+					state = line.split("\t")[6];
+					postcode = line.split("\t")[5];
+					address = line.split("\t")[3];
+					
+				        	Address add = new Address();
+				        	add.setAddress(address);
+				        	
+				        	/*City city = new City("Mysore",add);
+				        	District district = new District("Mysore",city);*/
+				        	PostalCode pc = new PostalCode(postcode,add);
+				        	State state1 = new State(state,pc);
+				        	Country country1 = new Country(country,state1);
+				        	Location loc = new Location(country1);
+
+				            // Create a new Gson object
+				            Gson gson = new Gson();
+
+				            //convert the Java object to json
+				            String jsonString = gson.toJson(loc);
+				            StringBuilder sb = new StringBuilder();
+				            sb.append(jsonString);
+				            //Write JSON String to file   
+				            
+				            p.println(sb);
+				            
+				            /*FileWriter fileWriter = new FileWriter("C:\\employee.json");
+				            fileWriter.write(sb);
+				            fileWriter.close();*/
+				            
+				       
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}finally{
+				p.close();
+			}
+		} catch (FileNotFoundException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+       
+    }
+}
